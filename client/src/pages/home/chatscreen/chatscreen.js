@@ -265,14 +265,24 @@ const ChatScreen = () => {
                             />
                           </div>
                           <div
-                            key={idx}
-                            className={`text-slate-600 text-sm font-medium px-4 py-2 m-2 rounded-lg shadow-lg w-fit bg-white ${
+                            className={`${
                               messageObj.from.name !== user.value.name
                                 ? " ml-auto"
                                 : ""
-                            }`}
+                            } mb-4`}
                           >
-                            {messageObj.message}
+                            <div
+                              key={idx}
+                              className={`text-slate-600 text-sm font-medium px-4 py-2 m-2 rounded-lg shadow-lg w-fit bg-white}`}
+                            >
+                              {messageObj.message}
+                            </div>
+                            {console.log(messageObj)}
+                            <div className="text-[10px] mx-4 text-gray-400">
+                              {`${messageObj.from.name} - ${moment(
+                                messageObj.created_time
+                              ).format("MMM D, h : mm A")}`}
+                            </div>
                           </div>
                         </div>
                       );
