@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -11,12 +11,12 @@ import {
   faPhone,
   faSignOut,
   faSync,
+  faUser,
   faUsers,
 } from "@fortawesome/free-solid-svg-icons";
 import { axiosInstance } from "../../../apicalls/axiosInst";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { FacebookLoginButton } from "react-social-login-buttons";
 
 const ChatScreen = () => {
   const [selectedChat, setSelectedChat] = useState(0);
@@ -27,7 +27,14 @@ const ChatScreen = () => {
   const user = useSelector((state) => state.user);
   const page = useSelector((state) => state.page);
   const moment = require("moment");
-  const [activeUser, setActiveUser] = useState({ name: " ", email: " " });
+  const [activeUser, setActiveUser] = useState({
+    name: " ",
+    email: " ",
+    picture: "https://randomuser.me/api/portraits/men/23.jpg",
+  });
+  const chatContainerRef = useRef(null);
+  const fullName = activeUser.name;
+  const [firstName, lastName] = fullName.split(" ");
 
   const sendMessage = async (psid, msg) => {
     try {
@@ -103,6 +110,11 @@ const ChatScreen = () => {
   };
 
   useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
+    }
+
     // Authorization
     const token = localStorage.getItem("token");
     if (!token || user.value.userId === null) {
@@ -111,21 +123,25 @@ const ChatScreen = () => {
       return;
     }
 
-    getMessages();
+    const fetchData = async () => {
+      await getMessages();
+    };
+
+    fetchData();
 
     // Set up an interval to fetch new messages every 5 seconds
     const intervalId = setInterval(() => {
-      getMessages();
-    }, 1000); // 5 seconds
+      fetchData();
+    }, 5000); // 5 seconds
 
     // Clear interval when component unmounts
     return () => clearInterval(intervalId);
-  }, []);
+  }, [chatList, selectedChat]);
 
   return (
     <div className=" h-screen w-full flex">
       {/* Sections 1 */}
-      <div className="w-1/12 h-screen bg-[#004E96] flex flex-col items-center justify-start py-20">
+      <div className="h-screen bg-[#004E96] flex flex-col items-center justify-start py-20">
         <button className="bg-white w-full h-20 font-thin">
           <FontAwesomeIcon
             icon={faEnvelope}
@@ -142,8 +158,13 @@ const ChatScreen = () => {
           />
         </button>
 
-        <div className="relative mt-auto bg-[#004E96] rounded-full w-16 h-16 bg-cover bg-center border-4 border-white">
-          <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full"></div>
+        <div className=" mx-3 relative mt-auto bg-[#004E96] rounded-full w-12 h-12 bg-cover bg-center border-4 border-white overflow-hidden">
+          <img
+            src={`${user && user.value.picture}`}
+            alt="Description"
+            class="w-full h-full object-cover"
+          />
+          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full"></div>
         </div>
 
         <button
@@ -206,13 +227,16 @@ const ChatScreen = () => {
       </div>
 
       {/* Section 3 */}
-      <div className="w-7/12 h-screen bg-slate-100 overflow-y-auto flex flex-col">
+      <div className="w-7/12 h-screen bg-slate-100 overflow-y-auto flex flex-col justify-between">
         <div className="p-4 border border-slate-200 bg-white h-16">
           <h1 className="font-bold text-2xl text-slate-700">
             {activeUser.name}
           </h1>
         </div>
-        <div className="py-16 px-6 overflow-y-auto">
+        <div
+          className="h-4/6 py-16 px-6 overflow-y-auto"
+          ref={chatContainerRef}
+        >
           {selectedChat
             ? chatList
                 .filter((chat) => chat.id === selectedChat)
@@ -220,22 +244,44 @@ const ChatScreen = () => {
                   filteredChat.messages.data
                     .slice(0)
                     .reverse()
-                    .map((messageObj, idx) => (
-                      <div
-                        key={idx}
-                        className={`text-slate-600 text-sm font-medium px-4 py-2 m-2 rounded-lg shadow-lg w-fit ${
-                          messageObj.from.name !== user.value.name
-                            ? "ml-auto bg-white"
-                            : "mr-auto bg-white"
-                        }`}
-                      >
-                        {messageObj.message}
-                      </div>
-                    ))
+                    .map((messageObj, idx) => {
+                      return (
+                        <div
+                          className={`flex items-center ${
+                            messageObj.from.name !== user.value.name
+                              ? " flex-row-reverse justify-end"
+                              : "justify-start"
+                          }`}
+                        >
+                          <div className="overflow-hidden w-7 h-7 rounded-full bg-slate-400 flex items-center justify-center border-2 border-slate-500">
+                            <img
+                              src={`${
+                                messageObj.from.name === user.value.name
+                                  ? "https://randomuser.me/api/portraits/men/58.jpg"
+                                  : user.value.picture
+                              }`}
+                              alt="Description"
+                              class="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div
+                            key={idx}
+                            className={`text-slate-600 text-sm font-medium px-4 py-2 m-2 rounded-lg shadow-lg w-fit bg-white ${
+                              messageObj.from.name !== user.value.name
+                                ? " ml-auto"
+                                : ""
+                            }`}
+                          >
+                            {messageObj.message}
+                          </div>
+                        </div>
+                      );
+                    })
                 )
             : "Select a chat to view messages"}
         </div>
-        <div className="flex items-center m-4 shadow-lg h-1/6">
+
+        <div className="flex items-center h-1/6 mb-0 px-6 py-0">
           <input
             type="text"
             value={message}
@@ -251,52 +297,66 @@ const ChatScreen = () => {
           </button>
         </div>
       </div>
+
       {/* Section 4 */}
       <div className="flex flex-col w-2/12 h-screen bg-white border border-slate-300">
-        <div className="h-2/3 bg-white flex flex-col items-center justify-center p-6">
-          <div className=" bg-blue-500 rounded-full w-20 h-20"></div>
-          <h1 className=" font-bold">{activeUser.name}</h1>
+        <div className="h-1/3 bg-white flex flex-col items-center justify-center p-6">
+          <div className=" bg-blue-500 rounded-full w-20 h-20 overflow-hidden border-2 border-slate-200">
+            {activeUser.name !== " " ? (
+              <img
+                src="https://randomuser.me/api/portraits/men/58.jpg"
+                alt="Description"
+                class="w-full h-full object-cover"
+              />
+            ) : null}
+          </div>
+          <h1 className=" font-bold mt-2">{activeUser.name}</h1>
           <div className="flex items-center justify-center w-full">
-            <div className=" rounded-full w-1 h-1 bg-green-600"></div>
+            <div className=" rounded-full w-2 h-2 bg-green-600 mr-1"></div>
             <h1 className=" text-xs"> Online</h1>
           </div>
-          <div className="w-full flex items-center justify-center">
-            <div className=" border border-gray-400 py-1 px-2">
+          <div className="w-full flex items-center justify-center mt-5">
+            <div className=" border border-gray-400 rounded-lg py-1 px-2 mx-1 flex">
               <FontAwesomeIcon
                 icon={faPhone}
                 className=" text-slate-400 text-xs"
               />
+              <div className=" text-xs">Profile</div>
             </div>
-            <div className="w-2"></div>
-            <div className=" border border-gray-400 py-1 px-2">
+            <div className=" border border-gray-400 rounded-lg py-1 px-2 mx-1 flex">
               <FontAwesomeIcon
-                icon={faUsers}
+                icon={faUser}
                 className=" text-slate-400 text-xs"
               />
+              <div className=" text-xs">Profile</div>
             </div>
           </div>
         </div>
 
         {/* Customer Details */}
         <div className=" h-2/3 bg-slate-200 px-3 py-4">
-          <div className=" w-full bg-white rounded-xl shadow-md px-4 py-4 flex flex-col">
-            <div className=" font-semibold text-sm">Customer Details</div>
+          <div className=" w-full bg-white rounded-xl shadow-md px-4 py-4 flex flex-col text-[11px] pt-5">
+            <div className=" font-semibold text-sm mb-4">Customer Details</div>
 
-            <div className="h-2"></div>
             <div className=" font-medium text-sm text-gray-500 flex justify-between">
-              <div className=" font-medium text-xs text-gray-500">Email</div>
-              <div className=" font-medium text-xs text-black overflow-clip">
-                ritu@gmail.com
+              <div className=" font-medium text-[11px] text-gray-500">
+                Email
+              </div>
+              <div className=" font-medium text-[10px] text-black">
+                {`${activeUser.email.slice(0, 5)}......@${
+                  activeUser.email.split("@")[1]
+                }`}
               </div>
             </div>
-            <div className=" font-medium text-sm text-gray-500 flex justify-between">
-              <div className=" font-medium text-xs text-gray-500">Name</div>
-              <div className=" font-medium text-xs text-black overflow-clip">
-                Ritu Raj
-              </div>
+            <div className=" font-medium text-gray-500 flex justify-between mt-2">
+              <div className=" font-medium  text-gray-500">First Name</div>
+              <div className=" font-medium  text-black">{firstName}</div>
             </div>
-            <div className="h-2"></div>
-            <div className=" font-medium text-xs text-blue-900">
+            <div className=" font-medium text-gray-500 flex justify-between mt-2">
+              <div className=" font-medium  text-gray-500">Last Name</div>
+              <div className=" font-medium  text-black">{lastName}</div>
+            </div>
+            <div className=" font-medium text-blue-900 mt-3">
               View more details
             </div>
           </div>
